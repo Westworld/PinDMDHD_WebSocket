@@ -46,6 +46,26 @@ WebSocketsClient webSocket;
 
 void drawHalfFrame(uint8_t * payload, uint8_t half) {
 		if (half == 0)
+			dma_display->clearScreen();
+
+    uint16_t * buffer = (uint16_t *) payload;
+
+	  for (int x = 0; x < 128; x++) {
+      for (int y = 0; y <  32; y++) {
+				long offset = 8 + ((x + (y*128)) * 2);
+				if (half == 0) {
+                	dma_display->drawPixel(x, y, buffer[offset]);
+				}	
+				else
+                	dma_display->drawPixel(x, y+32, buffer[offset]);				
+            }
+    }
+	if (half == 1)
+    	dma_display->flipDMABuffer();
+}
+
+void drawHalfFrameRGB(uint8_t * payload, uint8_t half) {
+		if (half == 0)
 			dma_display->fillScreenRGB888(0, 0, 0);
 	    for (int x = 0; x < 128; x++) {
             for (int y = 0; y <  32; y++) {
@@ -76,8 +96,8 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 			break;
 		case WStype_TEXT:
 			//USE_SERIAL.printf("[WSc] get text: %s\n", payload);
-      if (length == 12296) {
-		uint32_t * counter = (uint32_t *) payload;
+      if (length == (8192+8)) { // (length == 12296) {
+		    uint32_t * counter = (uint32_t *) payload;
 
         //USE_SERIAL.printf("[WSc] 1st byte: %u  frame: %u\n", payload[0], counter[1]);
 
