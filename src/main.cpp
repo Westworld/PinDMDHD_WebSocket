@@ -44,15 +44,33 @@ WebSocketsClient webSocket;
 
 #define USE_SERIAL Serial
 
+
+void drawHalfFrameFast(uint8_t * payload, uint8_t half) {
+    uint8_t * startpayload = &payload[8];
+
+    uint16_t * buffer = (uint16_t *) startpayload;
+
+		if (half == 0)
+			{
+        dma_display->fillScreenRGB888(0, 0, 0);
+        dma_display->CopyBuffer(0,  31, buffer);
+      }
+    else {
+      dma_display->CopyBuffer(32,  63, buffer);
+      dma_display->flipDMABuffer();
+
+    }  
+}
+
 void drawHalfFrame(uint8_t * payload, uint8_t half) {
 		if (half == 0)
-			dma_display->clearScreen();
+			dma_display->fillScreenRGB888(0, 0, 0);
 
     uint16_t * buffer = (uint16_t *) payload;
 
 	  for (int x = 0; x < 128; x++) {
       for (int y = 0; y <  32; y++) {
-				long offset = 8 + ((x + (y*128)) * 2);
+				long offset = 4 + ((x + (y*128)));  // offset 4 weil 4 * 2
 				if (half == 0) {
                 	dma_display->drawPixel(x, y, buffer[offset]);
 				}	
@@ -67,6 +85,7 @@ void drawHalfFrame(uint8_t * payload, uint8_t half) {
 void drawHalfFrameRGB(uint8_t * payload, uint8_t half) {
 		if (half == 0)
 			dma_display->fillScreenRGB888(0, 0, 0);
+
 	    for (int x = 0; x < 128; x++) {
             for (int y = 0; y <  32; y++) {
 				long offset = 8 + ((x + (y*128)) * 3);
@@ -105,13 +124,33 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         {
 			  if ((counter[1] > upperframe) |(counter[1] < (upperframe-50))){  // bei falscher Reihenfolge ignorieren
 				upperframe = counter[1];
-				drawHalfFrame(payload, 0);
+				//drawHalfFrameFast(payload, 0);
 			  }
 		}	  
         else  // lowerframe
           if (upperframe == counter[1])   {
 			USE_SERIAL.printf("[WSc] frame: %u\n", upperframe);
-			drawHalfFrame(payload, 1);
+			drawHalfFrameFast(payload, 1);
+          }//
+        
+      }
+      else
+      if (length == 12296) {
+		    uint32_t * counter = (uint32_t *) payload;
+
+        //USE_SERIAL.printf("[WSc] 1st byte: %u  frame: %u\n", payload[0], counter[1]);
+
+        if (payload[0] == 0)  // upperframe
+        {
+			  if ((counter[1] > upperframe) |(counter[1] < (upperframe-50))){  // bei falscher Reihenfolge ignorieren
+				upperframe = counter[1];
+				drawHalfFrameRGB(payload, 0);
+			  }
+		}	  
+        else  // lowerframe
+          if (upperframe == counter[1])   {
+			USE_SERIAL.printf("[WSc] frame RGB: %u\n", upperframe);
+			drawHalfFrameRGB(payload, 1);
           }//
         
       }
