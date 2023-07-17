@@ -6,18 +6,23 @@
 
 #include <WebSocketsClient.h>
 
+#ifndef NoDMD
 #include "ESP32-HUB75-MatrixPanel-DMA.h"
+#endif
+
+#include <receiver.h>
 
 // Server infos
-char HOST[] = "192.168.0.91";
-//#define HOST "http://localhost"
-#define PORT 80
-char PATH[] = "/ws";
+char HOST[] = "192.168.0.103";
+#define PORT 9090
+char PATH[] = "/dmd";
 
-long upperframe = 0, lowerframe = 0;
-
+#ifndef NoDMD
 MatrixPanel_DMA *dma_display = nullptr;
+#endif
+RECEIVER * receiver = nullptr;
 
+bool DelayedRedrawNeeded=false;
 
 // check
 
@@ -44,7 +49,21 @@ WebSocketsClient webSocket;
 
 #define USE_SERIAL Serial
 
+void decodePacket(uint8_t * payload, size_t length) {
+  short pos=0;
 
+  while ((pos<20) && (pos<length) && (payload[pos]!=0))
+    pos++;
+
+  if (pos>0) {
+    char buffer[21];
+    strncpy(buffer, (char *) payload, 21);
+    USE_SERIAL.printf("[dmd] found: %s\n", buffer);
+
+  }  
+}
+
+#ifndef NoDMD
 void drawHalfFrameFast(uint8_t * payload, uint8_t half) {
     uint8_t * startpayload = &payload[8];
 
@@ -100,6 +119,8 @@ void drawHalfFrameRGB(uint8_t * payload, uint8_t half) {
     	dma_display->flipDMABuffer();
 }
 
+#endif
+
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
 	switch(type) {
@@ -108,77 +129,33 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 			break;
 		case WStype_CONNECTED:
 			USE_SERIAL.printf("[WSc] Connected to url: %s\n", payload);
-      // 12500 byte works, 15000 fails
-
-			// send message to server when Connected
-			webSocket.sendTXT("Connected");
+			webSocket.sendTXT("init");
+      receiver->init();
 			break;
 		case WStype_TEXT:
-			//USE_SERIAL.printf("[WSc] get text: %s\n", payload);
-      if (length == (8192+8)) { // (length == 12296) {
-		    uint32_t * counter = (uint32_t *) payload;
+			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
 
-        //USE_SERIAL.printf("[WSc] 1st byte: %u  frame: %u\n", payload[0], counter[1]);
-
-        if (payload[0] == 0)  // upperframe
-        {
-			  if ((counter[1] > upperframe) |(counter[1] < (upperframe-50))){  // bei falscher Reihenfolge ignorieren
-				upperframe = counter[1];
-				//drawHalfFrameFast(payload, 0);
-			  }
-		}	  
-        else  // lowerframe
-          if (upperframe == counter[1])   {
-			USE_SERIAL.printf("[WSc] frame: %u\n", upperframe);
-			drawHalfFrameFast(payload, 1);
-          }//
-        
-      }
-      else
-      if (length == 12296) {
-		    uint32_t * counter = (uint32_t *) payload;
-
-        //USE_SERIAL.printf("[WSc] 1st byte: %u  frame: %u\n", payload[0], counter[1]);
-
-        if (payload[0] == 0)  // upperframe
-        {
-			  if ((counter[1] > upperframe) |(counter[1] < (upperframe-50))){  // bei falscher Reihenfolge ignorieren
-				upperframe = counter[1];
-				drawHalfFrameRGB(payload, 0);
-			  }
-		}	  
-        else  // lowerframe
-          if (upperframe == counter[1])   {
-			USE_SERIAL.printf("[WSc] frame RGB: %u\n", upperframe);
-			drawHalfFrameRGB(payload, 1);
-          }//
-        
-      }
-      else
-      USE_SERIAL.printf("[WSc] length ERROR : %u", length);
-
-			// send message to server
-			// webSocket.sendTXT("message here");
 			break;
 		case WStype_BIN:
-			USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
-			//hexdump(payload, length);
-
-			// send data to server
-			// webSocket.sendBIN(payload, length);
+			//USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+      receiver->ProcessPackage( payload, length, packet) ;
 			break;
 		case WStype_ERROR:			
       USE_SERIAL.printf("[WSc] get error");
       break;
 		case WStype_FRAGMENT_TEXT_START:
 		case WStype_FRAGMENT_BIN_START:
-      USE_SERIAL.printf("[WSc] get binary frag start");
+      //USE_SERIAL.printf("[WSc] get binary frag start, len: %u\n", length);
+      receiver->ProcessPackage( payload, length, fragmentstart) ;
       break;
 		case WStype_FRAGMENT:
-      USE_SERIAL.printf("[WSc] get binary frag");
+      //USE_SERIAL.printf("[WSc] get binary frag, len: %u\n", length);
+      receiver->ProcessPackage( payload, length, fragment) ;
       break;		
     case WStype_FRAGMENT_FIN:
-			break;
+     //USE_SERIAL.printf("[WSc]  binary frag fin: %u\n", length);
+     receiver->ProcessPackage( payload, length, fragmentend) ;
+		break;
 	}
 
 }
@@ -215,6 +192,7 @@ void setup() {
   #define PANE_WIDTH PANEL_WIDTH*PANEL_WIDTH_CNT
   #define PANE_HEIGHT PANEL_HEIGHT*PANEL_HEIGHT_CNT
 
+#ifndef NoDMD
   hub75_cfg_t mxconfig = {
     .mx_width = PANEL_WIDTH,
     .mx_height = PANEL_HEIGHT,
@@ -254,11 +232,6 @@ void setup() {
 
   // let's adjust default brightness to about 75%
   dma_display->setBrightness8(192);    // range is 0-255, 0 - 0%, 255 - 100%
-  //set rotate for new drawing
-  //dma_display->setRotate(ROTATE_90); //ROTATE_0, ROTATE_90, ROTATE_180, ROTATE_270
-  //set mirror for new drawing
-  //dma_display->setMirrorX(true);
-  //dma_display->setMirrorY(true);
  
   // well, hope we are OK, let's draw some colors first :)
   Serial.println("Fill screen: RED");
@@ -274,17 +247,34 @@ void setup() {
   dma_display->fillScreenRGB888(0, 0, 0);
   dma_display->flipDMABuffer();
 
+#endif
+
+  receiver = new RECEIVER();
+
 	// server address, port and URL
 	webSocket.begin(HOST, PORT, PATH);
 
 	// event handler
 	webSocket.onEvent(webSocketEvent);
 
-	// try ever 5000 again if connection has failed
-	webSocket.setReconnectInterval(5000);
+	// try ever 1000 again if connection has failed
+	webSocket.setReconnectInterval(1000);
 
 }
 
 void loop() {
 	webSocket.loop();
+  if (receiver->drawFrame)
+  {
+    receiver->drawFrame=false;
+    if (receiver->drawRGB != NULL) {
+      dma_display->fillScreenRGB888(0, 0, 0);
+      dma_display->CopyBuffer(0,  63, receiver->drawRGB);
+      DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
+    }
+  }
+
+  // retry in loop. If next frame already displayed, flag is reset
+  if (DelayedRedrawNeeded)
+    DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
 }
