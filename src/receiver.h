@@ -11,6 +11,7 @@ enum receiver_type { packet, fragmentstart, fragment, fragmentend };
 class RECEIVER
 {
     private:
+        bool LEFT; // true left, else right
         char gameName[32];
         int32_t width;
         int32_t height;
@@ -43,7 +44,7 @@ class RECEIVER
         bool drawFrame=false;
         uint16_t* drawRGB = NULL;
 
-        RECEIVER();
+        RECEIVER(bool left);
         void init();
         void ProcessPackage(uint8_t * payload, size_t length, receiver_type type);
         

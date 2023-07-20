@@ -12,10 +12,20 @@
 
 #include <receiver.h>
 
+//#define LEFT
+#define RIGHT
+
 // Server infos
+/*
 char HOST[] = "192.168.0.103";
 #define PORT 9090
 char PATH[] = "/dmd";
+*/
+
+char HOST[] = "192.168.0.91";
+#define PORT 80
+char PATH[] = "/ws";
+
 
 #ifndef NoDMD
 MatrixPanel_DMA *dma_display = nullptr;
@@ -134,6 +144,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 			break;
 		case WStype_TEXT:
 			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+      receiver->ProcessPackage( payload, length, packet) ;
 
 			break;
 		case WStype_BIN:
@@ -144,6 +155,9 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       USE_SERIAL.printf("[WSc] get error");
       break;
 		case WStype_FRAGMENT_TEXT_START:
+    //USE_SERIAL.printf("[WSc] get text frag start, len: %u\n", length);
+    receiver->ProcessPackage( payload, length, fragmentstart) ;
+      break;
 		case WStype_FRAGMENT_BIN_START:
       //USE_SERIAL.printf("[WSc] get binary frag start, len: %u\n", length);
       receiver->ProcessPackage( payload, length, fragmentstart) ;
@@ -171,11 +185,13 @@ void setup() {
 	USE_SERIAL.println();
 	USE_SERIAL.println();
 
+/*
 	for(uint8_t t = 4; t > 0; t--) {
 		USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
 		USE_SERIAL.flush();
 		delay(100);
 	}
+  */
 
 	WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
 
@@ -237,19 +253,19 @@ void setup() {
   Serial.println("Fill screen: RED");
   dma_display->fillScreenRGB888(255, 0, 0);
   dma_display->flipDMABuffer();
-  delay(1000);
+  delay(200);
     Serial.println("draw line: green");
   for (int i=0;i<64;i++)
   	dma_display->drawPixelRGB888(i, i, 0, 255, 0);
   dma_display->flipDMABuffer();
-  delay(1000);
+  delay(200);
    Serial.println("Fill screen: black");
   dma_display->fillScreenRGB888(0, 0, 0);
   dma_display->flipDMABuffer();
 
 #endif
 
-  receiver = new RECEIVER();
+  receiver = new RECEIVER(false); // right
 
 	// server address, port and URL
 	webSocket.begin(HOST, PORT, PATH);
@@ -258,7 +274,7 @@ void setup() {
 	webSocket.onEvent(webSocketEvent);
 
 	// try ever 1000 again if connection has failed
-	webSocket.setReconnectInterval(1000);
+	webSocket.setReconnectInterval(500);
 
 }
 
@@ -267,14 +283,27 @@ void loop() {
   if (receiver->drawFrame)
   {
     receiver->drawFrame=false;
-    if (receiver->drawRGB != NULL) {
+      #ifndef NoDMD
+ //  Serial.println("Before draw");
       dma_display->fillScreenRGB888(0, 0, 0);
       dma_display->CopyBuffer(0,  63, receiver->drawRGB);
       DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
-    }
+// Serial.println("after draw");
+      #endif
   }
 
   // retry in loop. If next frame already displayed, flag is reset
-  if (DelayedRedrawNeeded)
+  if (DelayedRedrawNeeded) {
+    #ifndef NoDMD
+    Serial.println("late draw");
     DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
+    #endif
+  }  
+}
+
+void DrawOnePixel(int16_t x, int16_t y, uint16_t color)
+{
+#ifndef NoDMD
+  dma_display->drawPixel(x, y, color);	
+#endif
 }
