@@ -6,7 +6,7 @@
 #include <esp32/rom/crc.h>
 
 enum receiver_type { packet, fragmentstart, fragment, fragmentend };
-#define maxreceiversize 16384
+#define maxreceiversize 49170
 
 class RECEIVER
 {
@@ -39,6 +39,7 @@ class RECEIVER
         bool JoinPlane(short offset, short bits);
         bool isBitSet(uint8_t byte, uint8_t pos);
         void graytoRgb16(short colors);
+        void Rgb24toRgb16(int32_t offsetstart);
 
     public:
         bool drawFrame=false;

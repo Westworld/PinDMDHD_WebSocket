@@ -1,6 +1,7 @@
 #include "receiver.h"
 
 extern void DrawOnePixel(int16_t x, int16_t y, uint16_t color);
+extern void DrawOnePixe24(int16_t x, int16_t y, uint8_t R, uint8_t G, uint8_t B);
 
 RECEIVER::RECEIVER(bool left)
 {
@@ -171,6 +172,18 @@ Serial.printf("create color palette %u\n", countpalettes) ;
     }
 
 
+    if (strcmp(cur_job_in_progress, "rgb24") == 0)
+    {
+        if (!init_done) return;
+        int16_t offset = 10;
+
+        Rgb24toRgb16(offset);    
+        
+        drawFrame= true;      
+        return;
+    }
+
+
     if (strcmp(cur_job_in_progress, "coloredGray2") == 0)
     {
         if (!init_done) return;
@@ -206,7 +219,7 @@ bool RECEIVER::JoinPlane(short offset, short bitlength)
     long planeSize = (buffer_offset-offset)/bitlength;
     long shouldbe = width * height / 8;
     if (planeSize != shouldbe) {
-        Serial.printf("wrong plane size %u\n", planeSize); return true; }
+        Serial.printf("wrong plane size %u - %u\n", planeSize, shouldbe); return true; }
 
     memset ( frame, 0, 256*64 );    
 
@@ -281,9 +294,40 @@ void RECEIVER::graytoRgb16(short colors)
             }
             
         }
-    }
-   
+    }   
 }
+
+void RECEIVER::Rgb24toRgb16(int32_t offsetstart)
+{
+    int32_t offset=offsetstart;
+    for (short y=0; y<height;y++) 
+    {
+        for (short x=0; x<width; x++) 
+        {
+            uint8_t R = buffer[offset];
+            uint8_t G = buffer[offset+1];
+            uint8_t B = buffer[offset+2];
+            if (LEFT)
+            {
+                if (x < 128)  
+                {
+                    DrawOnePixe24( x,  y,  R,  G,  B);
+                }
+            }
+            else
+            {  // RIGHT
+                if (x >= 128)  
+                    {
+                        DrawOnePixe24( x-128,  y,  R,  G,  B);
+                    }
+            }
+            offset+=3;
+            if (offset+3 > maxreceiversize)
+                return;
+        }
+    }   
+}
+
 
 uint32_t RECEIVER::getHash(int offset)
 {

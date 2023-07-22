@@ -12,8 +12,8 @@
 
 #include <receiver.h>
 
-//#define LEFT
-#define RIGHT
+
+bool IsLeft=true;
 
 // Server infos
 /*
@@ -34,10 +34,10 @@ RECEIVER * receiver = nullptr;
 
 bool DelayedRedrawNeeded=false;
 
-// check
+// direct connection // as used with ZeDMD
 
     #define PIN_R1  32 //25  
-    #define PIN_G1  23 // 26
+    #define PIN_G1  22 // 26  ((23 has issues?))
     #define PIN_B1  33 // 27
     #define PIN_R2  25 // 18  
     #define PIN_G2  19 // 21 
@@ -49,7 +49,7 @@ bool DelayedRedrawNeeded=false;
     #define PIN_D   17 // 17
     #define PIN_E   22  // nc
               
-    #define PIN_LE 16 // 4
+    #define PIN_LE 16 // 4   stb
     #define PIN_OE  13 // 15
     #define PIN_CLK 12 // 16
 
@@ -143,7 +143,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       receiver->init();
 			break;
 		case WStype_TEXT:
-			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+			//USE_SERIAL.printf("[WSc] get text: %s\n", payload);
       receiver->ProcessPackage( payload, length, packet) ;
 
 			break;
@@ -180,25 +180,12 @@ void setup() {
 
 	//Serial.setDebugOutput(true);
 	USE_SERIAL.setDebugOutput(true);
-
-	USE_SERIAL.println();
-	USE_SERIAL.println();
 	USE_SERIAL.println();
 
-/*
-	for(uint8_t t = 4; t > 0; t--) {
-		USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
-		USE_SERIAL.flush();
-		delay(100);
-	}
-  */
 
-	WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
 
-	//WiFi.disconnect();
-	while(WiFiMulti.run() != WL_CONNECTED) {
-		delay(100);
-	}
+
+
 
 	
   #define PANEL_WIDTH 128
@@ -253,19 +240,34 @@ void setup() {
   Serial.println("Fill screen: RED");
   dma_display->fillScreenRGB888(255, 0, 0);
   dma_display->flipDMABuffer();
-  delay(200);
+  delay(1000);
     Serial.println("draw line: green");
-  for (int i=0;i<64;i++)
-  	dma_display->drawPixelRGB888(i, i, 0, 255, 0);
+    dma_display->fillScreenRGB888(0, 255, 0);
+    dma_display->flipDMABuffer();
+
+  delay(1000);
+/*
+
+      Serial.println("draw line: blue");
+      dma_display->fillScreenRGB888(0, 0, 255);
   dma_display->flipDMABuffer();
-  delay(200);
+    delay(1000);
+  
+
    Serial.println("Fill screen: black");
   dma_display->fillScreenRGB888(0, 0, 0);
   dma_display->flipDMABuffer();
-
+*/
 #endif
 
-  receiver = new RECEIVER(false); // right
+	WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
+
+	//WiFi.disconnect();
+	while(WiFiMulti.run() != WL_CONNECTED) {
+		delay(100);
+	}
+
+  receiver = new RECEIVER(IsLeft);
 
 	// server address, port and URL
 	webSocket.begin(HOST, PORT, PATH);
@@ -284,7 +286,7 @@ void loop() {
   {
     receiver->drawFrame=false;
       #ifndef NoDMD
- //  Serial.println("Before draw");
+   Serial.println("Before draw");
       dma_display->fillScreenRGB888(0, 0, 0);
       dma_display->CopyBuffer(0,  63, receiver->drawRGB);
       DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
@@ -305,5 +307,12 @@ void DrawOnePixel(int16_t x, int16_t y, uint16_t color)
 {
 #ifndef NoDMD
   dma_display->drawPixel(x, y, color);	
+#endif
+}
+
+void DrawOnePixe24(int16_t x, int16_t y, uint8_t R, uint8_t G, uint8_t B)
+{
+#ifndef NoDMD
+  dma_display->drawPixelRGB888(x, y, R, G, B);	
 #endif
 }
