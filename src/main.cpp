@@ -1,8 +1,10 @@
 #include <Arduino.h>
 
+#include <WiFiManager.h> 
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
+
 
 #include <WebSocketsClient.h>
 
@@ -15,13 +17,13 @@
 
 bool IsLeft=true;
 
-// Server infos
+// Server infos direkt
 /*
 char HOST[] = "192.168.0.103";
 #define PORT 9090
 char PATH[] = "/dmd";
 */
-
+//proxy
 char HOST[] = "192.168.0.91";
 #define PORT 80
 char PATH[] = "/ws";
@@ -52,7 +54,12 @@ bool DelayedRedrawNeeded=false;
     #define PIN_LE 16 // 4   stb
     #define PIN_OE  13 // 15
     #define PIN_CLK 12 // 16
-
+  #define PANEL_WIDTH 128
+  #define PANEL_HEIGHT 64
+  #define PANEL_WIDTH_CNT 1
+  #define PANEL_HEIGHT_CNT 1
+  #define PANE_WIDTH PANEL_WIDTH*PANEL_WIDTH_CNT
+  #define PANE_HEIGHT PANEL_HEIGHT*PANEL_HEIGHT_CNT
 
 WiFiMulti WiFiMulti;
 WebSocketsClient webSocket;
@@ -143,36 +150,77 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       receiver->init();
 			break;
 		case WStype_TEXT:
-			//USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
       receiver->ProcessPackage( payload, length, packet) ;
 
 			break;
 		case WStype_BIN:
-			//USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+			USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
       receiver->ProcessPackage( payload, length, packet) ;
 			break;
 		case WStype_ERROR:			
       USE_SERIAL.printf("[WSc] get error");
       break;
 		case WStype_FRAGMENT_TEXT_START:
-    //USE_SERIAL.printf("[WSc] get text frag start, len: %u\n", length);
+    USE_SERIAL.printf("[WSc] get text frag start, len: %u\n", length);
     receiver->ProcessPackage( payload, length, fragmentstart) ;
       break;
 		case WStype_FRAGMENT_BIN_START:
-      //USE_SERIAL.printf("[WSc] get binary frag start, len: %u\n", length);
+      USE_SERIAL.printf("[WSc] get binary frag start, len: %u\n", length);
       receiver->ProcessPackage( payload, length, fragmentstart) ;
       break;
 		case WStype_FRAGMENT:
-      //USE_SERIAL.printf("[WSc] get binary frag, len: %u\n", length);
+      USE_SERIAL.printf("[WSc] get binary frag, len: %u\n", length);
       receiver->ProcessPackage( payload, length, fragment) ;
       break;		
     case WStype_FRAGMENT_FIN:
-     //USE_SERIAL.printf("[WSc]  binary frag fin: %u\n", length);
+     USE_SERIAL.printf("[WSc]  binary frag fin: %u\n", length);
      receiver->ProcessPackage( payload, length, fragmentend) ;
 		break;
 	}
 
 }
+
+
+void DrawFrame() 
+{
+#ifndef NoDMD
+  if (IsLeft) {
+    dma_display->setColor(255, 0 , 0);
+    dma_display->drawFastHLine(0, 0, 128);
+    dma_display->drawFastHLine(0, 64, 128);
+    dma_display->drawFastVLine(0, 0, 64);
+
+    dma_display->setColor(0, 255 , 0);
+    dma_display->drawFastHLine(1, 1, 127);
+    dma_display->drawFastHLine(1, 63, 127);
+    dma_display->drawFastVLine(1, 1, 62);    
+
+    dma_display->setColor(0, 0 , 255);
+    dma_display->drawFastHLine(2, 2, 126);
+    dma_display->drawFastHLine(2, 62, 126);
+    dma_display->drawFastVLine(2, 2, 60);  
+
+
+  }
+  else {  // Rechts
+    dma_display->setColor(255, 0 , 0);
+    dma_display->drawFastHLine(0, 0, 128);
+    dma_display->drawFastHLine(0, 64, 128);
+    dma_display->drawFastVLine(63, 0, 64);
+
+    dma_display->setColor(0, 255 , 0);
+    dma_display->drawFastHLine(1, 1, 127);
+    dma_display->drawFastHLine(1, 63, 127);
+    dma_display->drawFastVLine(62, 1, 62);    
+
+    dma_display->setColor(0, 0 , 255);
+    dma_display->drawFastHLine(2, 2, 126);
+    dma_display->drawFastHLine(2, 62, 126);
+    dma_display->drawFastVLine(61, 2, 60);  
+  }
+#endif  
+}  
 
 void setup() {
 	// USE_SERIAL.begin(921600);
@@ -181,19 +229,6 @@ void setup() {
 	//Serial.setDebugOutput(true);
 	USE_SERIAL.setDebugOutput(true);
 	USE_SERIAL.println();
-
-
-
-
-
-
-	
-  #define PANEL_WIDTH 128
-  #define PANEL_HEIGHT 64
-  #define PANEL_WIDTH_CNT 1
-  #define PANEL_HEIGHT_CNT 1
-  #define PANE_WIDTH PANEL_WIDTH*PANEL_WIDTH_CNT
-  #define PANE_HEIGHT PANEL_HEIGHT*PANEL_HEIGHT_CNT
 
 #ifndef NoDMD
   hub75_cfg_t mxconfig = {
@@ -235,29 +270,17 @@ void setup() {
 
   // let's adjust default brightness to about 75%
   dma_display->setBrightness8(192);    // range is 0-255, 0 - 0%, 255 - 100%
+
+  DrawFrame();
+
+  dma_display->setTextColorRGB(255, 0, 0);
+  dma_display->setCursor(20, 20);
+  dma_display->setTextSize(1);
+  dma_display->println("Connect Wifi");
+  //dma_display->drawChar(10, 50, 'a', 0xE120, 0x0, 18);
  
-  // well, hope we are OK, let's draw some colors first :)
-  Serial.println("Fill screen: RED");
-  dma_display->fillScreenRGB888(255, 0, 0);
-  dma_display->flipDMABuffer();
-  delay(1000);
-    Serial.println("draw line: green");
-    dma_display->fillScreenRGB888(0, 255, 0);
-    dma_display->flipDMABuffer();
-
-  delay(1000);
-/*
-
-      Serial.println("draw line: blue");
-      dma_display->fillScreenRGB888(0, 0, 255);
-  dma_display->flipDMABuffer();
-    delay(1000);
-  
-
-   Serial.println("Fill screen: black");
-  dma_display->fillScreenRGB888(0, 0, 0);
-  dma_display->flipDMABuffer();
-*/
+ dma_display->flipDMABuffer();
+ delay(1000);
 #endif
 
 	WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
@@ -278,18 +301,31 @@ void setup() {
 	// try ever 1000 again if connection has failed
 	webSocket.setReconnectInterval(500);
 
+   DrawFrame();
+  dma_display->setTextColorRGB(255, 0, 0);
+  dma_display->setCursor(20, 20);
+  dma_display->setTextSize(1);
+  dma_display->println("Connected");
+  //dma_display->drawChar(10, 50, 'a', 0xE120, 0x0, 18);
+ 
+ dma_display->flipDMABuffer();
+
 }
 
 void loop() {
 	webSocket.loop();
-  if (receiver->drawFrame)
+  if (receiver->drawFrame != 0)
   {
-    receiver->drawFrame=false;
       #ifndef NoDMD
-   Serial.println("Before draw");
-      dma_display->fillScreenRGB888(0, 0, 0);
-      dma_display->CopyBuffer(0,  63, receiver->drawRGB);
+      if (receiver->drawFrame == 1) {
+        //Serial.println("Before draw");
+        dma_display->fillScreenRGB888(0, 0, 0);
+        dma_display->CopyBuffer(0,  63, receiver->drawRGB);
+      }
+
+      receiver->drawFrame=0;
       DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
+      if (!DelayedRedrawNeeded)  Serial.print("+");
 // Serial.println("after draw");
       #endif
   }
@@ -297,10 +333,11 @@ void loop() {
   // retry in loop. If next frame already displayed, flag is reset
   if (DelayedRedrawNeeded) {
     #ifndef NoDMD
-    Serial.println("late draw");
+    Serial.print(".");
     DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
     #endif
   }  
+  
 }
 
 void DrawOnePixel(int16_t x, int16_t y, uint16_t color)
