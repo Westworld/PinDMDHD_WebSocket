@@ -42,7 +42,7 @@ class RECEIVER
         void Rgb24toRgb16(int32_t offsetstart);
 
     public:
-        bool drawFrame=false;
+        int8_t drawFrame=0;
         uint16_t* drawRGB = NULL;
 
         RECEIVER(bool left);

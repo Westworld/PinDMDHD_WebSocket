@@ -26,7 +26,7 @@ Serial.println("Before reset");
 
     init_done=false;
     init_last=0;
-    drawFrame=false;
+    drawFrame=0;
 
     buffer_offset=0;
     lastHash=0;
@@ -132,16 +132,16 @@ void RECEIVER::HandlePackage()
 */          
         if (JoinPlane(16, 4)) return;
         graytoRgb16(16);
-        drawFrame= true;      
+        drawFrame= 1;      
         return;
     }
 
     if (strcmp(cur_job_in_progress, "gray2Planes") == 0)
-    {
-        if (!init_done) return;         
+    {      
+        if (!init_done) return;        
         if (JoinPlane(16, 2)) return;
         graytoRgb16(4);
-        drawFrame= true;      
+        drawFrame= 1;      
         return;
     }    
 
@@ -163,11 +163,12 @@ Serial.printf("create color palette %u\n", countpalettes) ;
             memcpy(&newcolor, &buffer[offset], 4); 
             offset+=4;
             colorpalette[i] = newcolor;
+Serial.println(newcolor);
         }      
         
         if (JoinPlane(offset, 4)) return;
         graytoRgb16(16);
-        drawFrame= true;      
+        drawFrame= 1;      
         return;
     }
 
@@ -179,7 +180,19 @@ Serial.printf("create color palette %u\n", countpalettes) ;
 
         Rgb24toRgb16(offset);    
         
-        drawFrame= true;      
+        drawFrame= 2;      
+        return;
+    }
+
+    if (strcmp(cur_job_in_progress, "rgb16") == 0)
+    {
+    Serial.println("rgb16");
+        if (!init_done) return;
+        int16_t offset = 6;
+
+        memcpy(&drawRGB, &buffer[offset], 128*64*2);     
+        
+        drawFrame= 1;      
         return;
     }
 
@@ -206,7 +219,7 @@ Serial.printf("create color palette %u\n", countpalettes) ;
         
         if (JoinPlane(offset, 2)) return;
         graytoRgb16(4);
-        drawFrame= true;      
+        drawFrame= 1;      
         return;
     }
 
@@ -255,9 +268,13 @@ void RECEIVER::graytoRgb16(short colors)
         
         for (int8_t i=0;i<colors;i++) 
         {
-            float lum = i/(colors-1);
+            float div = colors -1;
+            float lum=0;
+            if (div != 0)
+                lum = (float) i/div;
             HSL hslcolor =  HSL(color_hsl.H, color_hsl.S, lum*color_hsl.L);
             colorpalette[i] = hslcolor.HSLToRGB16();
+            Serial.printf("color %u of lum %f is %u", i, lum, colorpalette[i]);
         } 
     }
 
