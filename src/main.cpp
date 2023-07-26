@@ -150,31 +150,31 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       receiver->init();
 			break;
 		case WStype_TEXT:
-			USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+		//	USE_SERIAL.printf("[WSc] get text: %s\n", payload);
       receiver->ProcessPackage( payload, length, packet) ;
 
 			break;
 		case WStype_BIN:
-			USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+		//	USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
       receiver->ProcessPackage( payload, length, packet) ;
 			break;
 		case WStype_ERROR:			
       USE_SERIAL.printf("[WSc] get error");
       break;
 		case WStype_FRAGMENT_TEXT_START:
-    USE_SERIAL.printf("[WSc] get text frag start, len: %u\n", length);
+    //USE_SERIAL.printf("[WSc] get text frag start, len: %u\n", length);
     receiver->ProcessPackage( payload, length, fragmentstart) ;
       break;
 		case WStype_FRAGMENT_BIN_START:
-      USE_SERIAL.printf("[WSc] get binary frag start, len: %u\n", length);
+     // USE_SERIAL.printf("[WSc] get binary frag start, len: %u\n", length);
       receiver->ProcessPackage( payload, length, fragmentstart) ;
       break;
 		case WStype_FRAGMENT:
-      USE_SERIAL.printf("[WSc] get binary frag, len: %u\n", length);
+     // USE_SERIAL.printf("[WSc] get binary frag, len: %u\n", length);
       receiver->ProcessPackage( payload, length, fragment) ;
       break;		
     case WStype_FRAGMENT_FIN:
-     USE_SERIAL.printf("[WSc]  binary frag fin: %u\n", length);
+    // USE_SERIAL.printf("[WSc]  binary frag fin: %u\n", length);
      receiver->ProcessPackage( payload, length, fragmentend) ;
 		break;
 	}
@@ -188,36 +188,54 @@ void DrawFrame()
   if (IsLeft) {
     dma_display->setColor(255, 0 , 0);
     dma_display->drawFastHLine(0, 0, 128);
-    dma_display->drawFastHLine(0, 64, 128);
+    dma_display->drawFastHLine(1, 1, 127);
+    dma_display->drawFastHLine(1, 62, 127);
+    dma_display->drawFastHLine(0, 63, 128);
     dma_display->drawFastVLine(0, 0, 64);
+    dma_display->drawFastVLine(1, 0, 64);
 
     dma_display->setColor(0, 255 , 0);
-    dma_display->drawFastHLine(1, 1, 127);
-    dma_display->drawFastHLine(1, 63, 127);
-    dma_display->drawFastVLine(1, 1, 62);    
+    dma_display->drawFastHLine(2, 2, 126);
+    dma_display->drawFastHLine(3, 3, 125);    
+    dma_display->drawFastHLine(2, 61, 126);
+    dma_display->drawFastHLine(3, 60, 125);
+    dma_display->drawFastVLine(2, 2, 59);    
+    dma_display->drawFastVLine(3, 3, 59); 
 
     dma_display->setColor(0, 0 , 255);
-    dma_display->drawFastHLine(2, 2, 126);
-    dma_display->drawFastHLine(2, 62, 126);
-    dma_display->drawFastVLine(2, 2, 60);  
-
+    dma_display->drawFastHLine(4, 4, 124);
+    dma_display->drawFastHLine(5, 5, 123);
+    dma_display->drawFastHLine(4, 59, 124);
+    dma_display->drawFastHLine(5, 58, 123);
+    dma_display->drawFastVLine(4, 4, 55);  
+    dma_display->drawFastVLine(5, 5, 55); 
 
   }
   else {  // Rechts
-    dma_display->setColor(255, 0 , 0);
+   dma_display->setColor(255, 0 , 0);
     dma_display->drawFastHLine(0, 0, 128);
-    dma_display->drawFastHLine(0, 64, 128);
+    dma_display->drawFastHLine(1, 1, 127);
+    dma_display->drawFastHLine(1, 62, 127);
+    dma_display->drawFastHLine(0, 63, 128);
     dma_display->drawFastVLine(63, 0, 64);
+    dma_display->drawFastVLine(62, 0, 64);
 
     dma_display->setColor(0, 255 , 0);
-    dma_display->drawFastHLine(1, 1, 127);
-    dma_display->drawFastHLine(1, 63, 127);
-    dma_display->drawFastVLine(62, 1, 62);    
+    dma_display->drawFastHLine(2, 2, 126);
+    dma_display->drawFastHLine(3, 3, 125);    
+    dma_display->drawFastHLine(2, 61, 126);
+    dma_display->drawFastHLine(3, 60, 125);
+    dma_display->drawFastVLine(61, 3, 59);    
+    dma_display->drawFastVLine(60, 3, 59); 
 
     dma_display->setColor(0, 0 , 255);
-    dma_display->drawFastHLine(2, 2, 126);
-    dma_display->drawFastHLine(2, 62, 126);
-    dma_display->drawFastVLine(61, 2, 60);  
+    dma_display->drawFastHLine(4, 4, 124);
+    dma_display->drawFastHLine(5, 5, 123);
+    dma_display->drawFastHLine(4, 59, 124);
+    dma_display->drawFastHLine(5, 58, 123);
+    dma_display->drawFastVLine(59, 6, 55);  
+    dma_display->drawFastVLine(58, 6, 55); 
+ 
   }
 #endif  
 }  
@@ -301,6 +319,7 @@ void setup() {
 	// try ever 1000 again if connection has failed
 	webSocket.setReconnectInterval(500);
 
+      #ifndef NoDMD
    DrawFrame();
   dma_display->setTextColorRGB(255, 0, 0);
   dma_display->setCursor(20, 20);
@@ -309,6 +328,7 @@ void setup() {
   //dma_display->drawChar(10, 50, 'a', 0xE120, 0x0, 18);
  
  dma_display->flipDMABuffer();
+ #endif
 
 }
 
@@ -318,15 +338,15 @@ void loop() {
   {
       #ifndef NoDMD
       if (receiver->drawFrame == 1) {
-        //Serial.println("Before draw");
-        dma_display->fillScreenRGB888(0, 0, 0);
+        Serial.println("Before draw");
+        //dma_display->fillScreenRGB888(0, 0, 0);
         dma_display->CopyBuffer(0,  63, receiver->drawRGB);
       }
 
       receiver->drawFrame=0;
       DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
       if (!DelayedRedrawNeeded)  Serial.print("+");
-// Serial.println("after draw");
+Serial.println("after draw");
       #endif
   }
 

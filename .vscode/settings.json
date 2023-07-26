@@ -2,5 +2,6 @@
     "files.associations": {
         "array": "cpp",
         "vector": "cpp"
-    }
+    },
+    "cmake.configureOnOpen": false
 }

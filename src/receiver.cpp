@@ -120,16 +120,7 @@ void RECEIVER::HandlePackage()
 
     if (strcmp(cur_job_in_progress, "gray4Planes") == 0)
     {
-        if (!init_done) return;
-/*
-        uint32_t newHash = getHash(16);
-        if (newHash == lastHash) {
-            Serial.println("same hash");
-            return;
-        }
-        Serial.println("####### new hash");
-        lastHash = newHash;  
-*/          
+        if (!init_done) return;         
         if (JoinPlane(16, 4)) return;
         graytoRgb16(16);
         drawFrame= 1;      
@@ -184,18 +175,36 @@ Serial.println(newcolor);
         return;
     }
 
-    if (strcmp(cur_job_in_progress, "rgb16") == 0)
+    if (strcmp(cur_job_in_progress, "rgb16A") == 0)
     {
-    Serial.println("rgb16");
+    Serial.println("rgb16A");
         if (!init_done) return;
-        int16_t offset = 6;
+        int16_t offset = 7;
 
-        memcpy(&drawRGB, &buffer[offset], 128*64*2);     
+        uint8_t * ptr1 = ( uint8_t *) drawRGB;
+        uint8_t * ptr2 = buffer;
+       // uint8_t * ptr3 = &drawRGB;
+        uint8_t * ptr4 = &buffer[offset];
+
+
+
+// source and dest in hilfspointer zum test
+        memcpy(drawRGB, &buffer[offset], 128*32*2);     
+        
+        drawFrame= 0;      
+        return;
+    }
+    if (strcmp(cur_job_in_progress, "rgb16B") == 0)
+    {
+    Serial.println("rgb16B");
+        if (!init_done) return;
+        int16_t offset = 7;
+
+        memcpy(&drawRGB[128*32], &buffer[offset], 128*32*2);     
         
         drawFrame= 1;      
         return;
     }
-
 
     if (strcmp(cur_job_in_progress, "coloredGray2") == 0)
     {
