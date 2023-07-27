@@ -24,6 +24,7 @@ char HOST[] = "192.168.0.103";
 char PATH[] = "/dmd";
 */
 //proxy
+
 char HOST[] = "192.168.0.91";
 #define PORT 80
 char PATH[] = "/ws";
@@ -338,7 +339,7 @@ void loop() {
   {
       #ifndef NoDMD
       if (receiver->drawFrame == 1) {
-        Serial.println("Before draw");
+       // Serial.println("Before draw");
         //dma_display->fillScreenRGB888(0, 0, 0);
         dma_display->CopyBuffer(0,  63, receiver->drawRGB);
       }
@@ -346,7 +347,7 @@ void loop() {
       receiver->drawFrame=0;
       DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
       if (!DelayedRedrawNeeded)  Serial.print("+");
-Serial.println("after draw");
+//Serial.println("after draw");
       #endif
   }
 
