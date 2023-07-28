@@ -8,6 +8,14 @@ RGB::RGB(unsigned char r, unsigned char g, unsigned char b)
     B = b;
 }
 
+RGB::RGB(long rgb)
+{
+    unsigned char * longptr = (unsigned char *) &rgb;
+    R = longptr[1];
+    G = longptr[2];
+    B = longptr[3];
+}
+
 bool RGB::Equals(RGB rgb)
 {
     return (R == rgb.R) && (G == rgb.G) && (B == rgb.B);
@@ -18,6 +26,14 @@ void RGB::SetLong(long rgb)
     unsigned char * longptr = (unsigned char *) &rgb;
     R = longptr[1];
     G = longptr[2];
+    B = longptr[3];
+}
+
+void RGB::SetLong_grb(long rgb) 
+{
+    unsigned char * longptr = (unsigned char *) &rgb;
+    G = longptr[1];
+    R = longptr[2];
     B = longptr[3];
 }
 

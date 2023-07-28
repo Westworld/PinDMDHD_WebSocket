@@ -11,8 +11,10 @@ public:
 	unsigned char B;
 
     RGB() {}; 
+    RGB(long rgb);
     RGB(unsigned char r, unsigned char g, unsigned char b);
     void SetLong(long rgb);
+    void SetLong_grb(long rgb);
     HSL toHSL();
     unsigned short toInt16();
 

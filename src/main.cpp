@@ -15,7 +15,7 @@
 #include <receiver.h>
 
 
-bool IsLeft=true;
+bool IsLeft=false;
 
 // Server infos direkt
 /*
@@ -215,27 +215,27 @@ void DrawFrame()
   else {  // Rechts
    dma_display->setColor(255, 0 , 0);
     dma_display->drawFastHLine(0, 0, 128);
-    dma_display->drawFastHLine(1, 1, 127);
-    dma_display->drawFastHLine(1, 62, 127);
+    dma_display->drawFastHLine(0, 1, 127);
+    dma_display->drawFastHLine(0, 62, 127);
     dma_display->drawFastHLine(0, 63, 128);
-    dma_display->drawFastVLine(63, 0, 64);
-    dma_display->drawFastVLine(62, 0, 64);
+    dma_display->drawFastVLine(127, 0, 64);
+    dma_display->drawFastVLine(126, 0, 64);
 
     dma_display->setColor(0, 255 , 0);
-    dma_display->drawFastHLine(2, 2, 126);
-    dma_display->drawFastHLine(3, 3, 125);    
-    dma_display->drawFastHLine(2, 61, 126);
-    dma_display->drawFastHLine(3, 60, 125);
-    dma_display->drawFastVLine(61, 3, 59);    
-    dma_display->drawFastVLine(60, 3, 59); 
+    dma_display->drawFastHLine(0, 2, 126);
+    dma_display->drawFastHLine(0, 3, 126);    
+    dma_display->drawFastHLine(0, 61, 126);
+    dma_display->drawFastHLine(0, 60, 126);
+    dma_display->drawFastVLine(125, 3, 59);    
+    dma_display->drawFastVLine(124, 3, 59); 
 
     dma_display->setColor(0, 0 , 255);
-    dma_display->drawFastHLine(4, 4, 124);
-    dma_display->drawFastHLine(5, 5, 123);
-    dma_display->drawFastHLine(4, 59, 124);
-    dma_display->drawFastHLine(5, 58, 123);
-    dma_display->drawFastVLine(59, 6, 55);  
-    dma_display->drawFastVLine(58, 6, 55); 
+    dma_display->drawFastHLine(0, 4, 124);
+    dma_display->drawFastHLine(0, 5, 123);
+    dma_display->drawFastHLine(0, 59, 124);
+    dma_display->drawFastHLine(0, 58, 123);
+    dma_display->drawFastVLine(123, 6, 54);  
+    dma_display->drawFastVLine(122, 6, 54); 
  
   }
 #endif  
@@ -302,6 +302,12 @@ void setup() {
  delay(1000);
 #endif
 
+if (IsLeft)
+  WiFi.setHostname("PinMatrixL");  
+else
+ WiFi.setHostname("PinMatrixR");  
+
+  WiFi.mode(WIFI_STA);
 	WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
 
 	//WiFi.disconnect();
@@ -339,7 +345,7 @@ void loop() {
   {
       #ifndef NoDMD
       if (receiver->drawFrame == 1) {
-       // Serial.println("Before draw");
+        //Serial.println("Before draw");
         //dma_display->fillScreenRGB888(0, 0, 0);
         dma_display->CopyBuffer(0,  63, receiver->drawRGB);
       }

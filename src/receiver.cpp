@@ -14,8 +14,8 @@ void RECEIVER::reset()
 Serial.println("Before reset");
 
     gameName[0] = 0;
-    width = 128;
-    height = 32;
+    width = 256;
+    height = 64;
     color_rgb.SetLong(0x00EC843D);
     color_hsl = color_rgb.toHSL();
 
@@ -136,6 +136,38 @@ void RECEIVER::HandlePackage()
         return;
     }    
 
+    if (strcmp(cur_job_in_progress, "coloredGray2") == 0)
+    {
+        if (!init_done) return;
+        int16_t offset = 17;
+        uint32_t countpalettes=0;
+        memcpy(&countpalettes, &buffer[offset], 4); 
+        offset+=4;
+        if (colorpalette != NULL) delete colorpalette;
+
+        colorpalette = new uint16_t[countpalettes];
+//Serial.printf("create color palette %u\n", countpalettes) ;
+        
+        for (int8_t i=0;i<countpalettes;i++) 
+        {
+            uint32_t newcolor=0;
+            memcpy(&newcolor, &buffer[offset], 4); 
+            offset+=4;
+            RGB rgb;
+            rgb.SetLong_grb(newcolor);
+            colorpalette[i] = rgb.toInt16();
+            
+//Serial.printf("color: %04x 16bit: %02x\n",newcolor, colorpalette[i]);
+        }      
+        
+        if (JoinPlane(offset, 2)) return;
+        graytoRgb16(4);
+        drawFrame= 1;   
+        Serial.printf("coloredGray2 Ende\n") ;   
+        return;
+    }
+
+
     if (strcmp(cur_job_in_progress, "coloredGray4") == 0)
     {
         if (!init_done) return;
@@ -152,14 +184,17 @@ Serial.printf("create color palette %u\n", countpalettes) ;
         {
             uint32_t newcolor=0;
             memcpy(&newcolor, &buffer[offset], 4); 
+            RGB rgb(buffer[offset+2],buffer[offset+1],buffer[offset+0]);
             offset+=4;
-            colorpalette[i] = newcolor;
-Serial.println(newcolor);
+            colorpalette[i] = rgb.toInt16();
+            
+Serial.printf("color: %04x 16bit: %02x\n",newcolor, colorpalette[i]);
         }      
         
         if (JoinPlane(offset, 4)) return;
         graytoRgb16(16);
-        drawFrame= 1;      
+        drawFrame= 1;   
+        Serial.printf("coloredGray4 Ende\n") ;   
         return;
     }
 
@@ -177,7 +212,7 @@ Serial.println(newcolor);
 
     if (strcmp(cur_job_in_progress, "rgb16A") == 0)
     {
-    Serial.println("rgb16A");
+//    Serial.println("rgb16A");
         if (!init_done) return;
         int16_t offset = 7;
 
@@ -196,7 +231,7 @@ Serial.println(newcolor);
     }
     if (strcmp(cur_job_in_progress, "rgb16B") == 0)
     {
-    Serial.println("rgb16B");
+//    Serial.println("rgb16B");
         if (!init_done) return;
         int16_t offset = 7;
 
@@ -238,26 +273,47 @@ Serial.printf("create color palette %u\n", countpalettes) ;
 
 bool RECEIVER::JoinPlane(short offset, short bitlength)
 {
-    long planeSize = (buffer_offset-offset)/bitlength;
-    long shouldbe = width * height / 8;
+    int16_t planeSize = (buffer_offset-offset)/bitlength;
+    int16_t shouldbe = width * height / 8;
     if (planeSize != shouldbe) {
         Serial.printf("wrong plane size %u - %u\n", planeSize, shouldbe); return true; }
 
-    memset ( frame, 0, 256*64 );    
+    int16_t thesize = 256*64;
+    memset ( frame, 0, thesize );    
 
-    for (int bytePos=0; bytePos<(width*height/8); bytePos++) {
-        for (int8_t bitPos=7; bitPos>=0; bitPos--) {
+    thesize=0;
+
+    for (int16_t bytePos=0; bytePos<(width*height/8); bytePos++) {
+        for (int8_t bitPos=7; bitPos>=0; bitPos--) {           
             for (int8_t planePos=0; planePos<bitlength;planePos++) {
-                uint8_t * plane = &buffer[shouldbe * planePos];
+                uint8_t * plane1 = &buffer[0];
+                uint8_t * plane2 = &buffer[offset];
+                uint16_t offsetPlanePos = shouldbe * planePos;
+                uint8_t * plane3 = &buffer[offset+offsetPlanePos];
+                uint8_t * plane = &buffer[offset+offsetPlanePos]; //[offset + (shouldbe * planePos)];
                 int8_t bit = isBitSet(plane[bytePos], bitPos) ? 1 : 0;
-                uint8_t byte = frame[bytePos*8+bitPos];
-                byte = byte | (bit << planePos);
-                if (byte > 16)
-                    Serial.println("wrong color");
-                frame[bytePos*8+bitPos] = byte;
+                if(bit == 1) {
+                    uint8_t byte = frame[bytePos*8+bitPos];
+                    byte = byte | (bit << planePos);
+                    if (byte > 16)
+                        Serial.println("wrong color");
+                    frame[bytePos*8+bitPos] = byte;
+                }
+                
             }
         }
     }
+/*
+    for (int16_t y=0;y<=8;y++) {
+        for (int16_t x=0;x<256;x++) {
+            if ((y>5)&(x<128)) {
+                Serial.printf("%01x ", frame[(y*256)+x]);
+            }
+        }
+        Serial.println();
+    }
+*/
+
     return false;
 }
 
@@ -283,9 +339,15 @@ void RECEIVER::graytoRgb16(short colors)
                 lum = (float) i/div;
             HSL hslcolor =  HSL(color_hsl.H, color_hsl.S, lum*color_hsl.L);
             colorpalette[i] = hslcolor.HSLToRGB16();
-            Serial.printf("color %u of lum %f is %u", i, lum, colorpalette[i]);
+            //Serial.printf("color %u of lum %f is %u", i, lum, colorpalette[i]);
         } 
     }
+    /*
+    else {
+        for (int8_t i=0;i<16;i++)
+            Serial.printf("color: %u = %u\n", i, colorpalette[i]);
+    }
+    */
 
     for (short y=0; y<height;y++) 
     {
@@ -294,10 +356,14 @@ void RECEIVER::graytoRgb16(short colors)
             long index = (y*width)+x;
             long test = frame[index];
             unsigned char test2 = frame[index];
-            if (frame[index] >= colors)
+            if (test2 >= colors)
                 Serial.printf("invalid color: %u\n",frame[index]); 
             else    
-                dotColor = colorpalette[frame[(y*width)+x]];
+                dotColor = colorpalette[test2];
+
+           // if (test2 == 15)
+           //     Serial.printf("color F on x: %u y: %u dot %u\n", x, y, dotColor);    
+
             if (drawRGB == NULL)  {
                 Serial.printf("drawRGB == null\n"); return;
             }    
@@ -321,6 +387,16 @@ void RECEIVER::graytoRgb16(short colors)
             
         }
     }   
+/*
+    for (int16_t y=0;y<=8;y++) {
+        for (int16_t x=0;x<256;x++) {
+            if ((y>5)&(x<128)) {
+                Serial.printf("%04x ", drawRGB[(y*256)+x]);
+            }
+        }
+        Serial.println();
+    }
+*/
 }
 
 void RECEIVER::Rgb24toRgb16(int32_t offsetstart)
