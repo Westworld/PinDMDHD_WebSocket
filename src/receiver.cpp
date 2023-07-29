@@ -151,10 +151,9 @@ void RECEIVER::HandlePackage()
         for (int8_t i=0;i<countpalettes;i++) 
         {
             uint32_t newcolor=0;
-            memcpy(&newcolor, &buffer[offset], 4); 
+ //           memcpy(&newcolor, &buffer[offset], 4); 
+            RGB rgb(buffer[offset+2],buffer[offset+1],buffer[offset+0]);
             offset+=4;
-            RGB rgb;
-            rgb.SetLong_grb(newcolor);
             colorpalette[i] = rgb.toInt16();
             
 //Serial.printf("color: %04x 16bit: %02x\n",newcolor, colorpalette[i]);
@@ -178,23 +177,23 @@ void RECEIVER::HandlePackage()
         if (colorpalette != NULL) delete colorpalette;
 
         colorpalette = new uint16_t[countpalettes];
-Serial.printf("create color palette %u\n", countpalettes) ;
+//Serial.printf("create color palette %u\n", countpalettes) ;
         
         for (int8_t i=0;i<countpalettes;i++) 
         {
             uint32_t newcolor=0;
-            memcpy(&newcolor, &buffer[offset], 4); 
+ //           memcpy(&newcolor, &buffer[offset], 4); 
             RGB rgb(buffer[offset+2],buffer[offset+1],buffer[offset+0]);
             offset+=4;
             colorpalette[i] = rgb.toInt16();
             
-Serial.printf("color: %04x 16bit: %02x\n",newcolor, colorpalette[i]);
+//Serial.printf("color: %04x 16bit: %02x\n",newcolor, colorpalette[i]);
         }      
         
         if (JoinPlane(offset, 4)) return;
         graytoRgb16(16);
         drawFrame= 1;   
-        Serial.printf("coloredGray4 Ende\n") ;   
+ //       Serial.printf("coloredGray4 Ende\n") ;   
         return;
     }
 

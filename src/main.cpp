@@ -15,7 +15,7 @@
 #include <receiver.h>
 
 
-bool IsLeft=false;
+bool IsLeft=true;
 
 // Server infos direkt
 /*
@@ -25,7 +25,7 @@ char PATH[] = "/dmd";
 */
 //proxy
 
-char HOST[] = "192.168.0.91";
+char HOST[] = "192.168.0.103";  // 91
 #define PORT 80
 char PATH[] = "/ws";
 
@@ -352,7 +352,7 @@ void loop() {
 
       receiver->drawFrame=0;
       DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
-      if (!DelayedRedrawNeeded)  Serial.print("+");
+     // if (!DelayedRedrawNeeded)  Serial.print("+");
 //Serial.println("after draw");
       #endif
   }
@@ -360,7 +360,7 @@ void loop() {
   // retry in loop. If next frame already displayed, flag is reset
   if (DelayedRedrawNeeded) {
     #ifndef NoDMD
-    Serial.print(".");
+    //Serial.print(".");
     DelayedRedrawNeeded = dma_display->flipDMABufferIfReady();
     #endif
   }  
