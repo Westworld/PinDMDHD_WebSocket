@@ -16,6 +16,9 @@ Serial.println("Before reset");
     gameName[0] = 0;
     width = 256;
     height = 64;
+    xoffset=0;
+    yoffset=0;
+    scale=1;
     color_rgb.SetLong(0x00EC843D);
     color_hsl = color_rgb.toHSL();
 
@@ -82,6 +85,7 @@ void RECEIVER::HandlePackage()
 {
     if (strcmp(cur_job_in_progress, "gameName") == 0)
     {
+        reset();
         strncpy(gameName, (char *) &buffer[package_header_end],31);
         gameName[31]=0;
     Serial.print("GameName: ");
@@ -95,8 +99,24 @@ void RECEIVER::HandlePackage()
         if (buffer_offset >= (package_header_end+8)) {
             memcpy(&width, &buffer[package_header_end], 4);
             memcpy(&height, &buffer[package_header_end+4], 4);
-    Serial.printf("Width: %u,  Height: %u\n", width, height);            
+  
+        // check resize. Using concept of "ScaleImage" from ZeDMD
+        if (width == 192)
+        {
+                xoffset = 32;
+        }   
+        else if (height == 16)
+            {
+            yoffset = 16;
+            scale = 2;
+            }
+            else if (width == 128 )
+            {
+            scale = 2;
+            }         
         }
+
+        Serial.printf("Width: %u,  Height: %u Scale: %d, yoffset: %d\n", width, height, scale, yoffset); 
         return;
     }
 
@@ -162,7 +182,7 @@ void RECEIVER::HandlePackage()
         if (JoinPlane(offset, 2)) return;
         graytoRgb16(4);
         drawFrame= 1;   
-        Serial.printf("coloredGray2 Ende\n") ;   
+        //Serial.printf("coloredGray2 Ende\n") ;   
         return;
     }
 
@@ -176,18 +196,12 @@ void RECEIVER::HandlePackage()
         offset+=4;
         if (colorpalette != NULL) delete colorpalette;
 
-        colorpalette = new uint16_t[countpalettes];
-//Serial.printf("create color palette %u\n", countpalettes) ;
-        
+        colorpalette = new uint16_t[countpalettes];      
         for (int8_t i=0;i<countpalettes;i++) 
         {
-            uint32_t newcolor=0;
- //           memcpy(&newcolor, &buffer[offset], 4); 
             RGB rgb(buffer[offset+2],buffer[offset+1],buffer[offset+0]);
             offset+=4;
             colorpalette[i] = rgb.toInt16();
-            
-//Serial.printf("color: %04x 16bit: %02x\n",newcolor, colorpalette[i]);
         }      
         
         if (JoinPlane(offset, 4)) return;
@@ -250,7 +264,7 @@ void RECEIVER::HandlePackage()
         if (colorpalette != NULL) delete colorpalette;
 
         colorpalette = new uint16_t[countpalettes];
-Serial.printf("create color palette %u\n", countpalettes) ;
+//Serial.printf("create color palette %u\n", countpalettes) ;
         
         for (int8_t i=0;i<countpalettes;i++) 
         {
@@ -275,7 +289,7 @@ bool RECEIVER::JoinPlane(short offset, short bitlength)
     int16_t planeSize = (buffer_offset-offset)/bitlength;
     int16_t shouldbe = width * height / 8;
     if (planeSize != shouldbe) {
-        Serial.printf("wrong plane size %u - %u\n", planeSize, shouldbe); return true; }
+        Serial.printf("wrong plane size %u - %u  bitlength: %d\n", planeSize, shouldbe, bitlength); return true; }
 
     int16_t thesize = 256*64;
     memset ( frame, 0, thesize );    
@@ -302,16 +316,6 @@ bool RECEIVER::JoinPlane(short offset, short bitlength)
             }
         }
     }
-/*
-    for (int16_t y=0;y<=8;y++) {
-        for (int16_t x=0;x<256;x++) {
-            if ((y>5)&(x<128)) {
-                Serial.printf("%01x ", frame[(y*256)+x]);
-            }
-        }
-        Serial.println();
-    }
-*/
 
     return false;
 }
@@ -327,9 +331,7 @@ void RECEIVER::graytoRgb16(short colors)
 
     if (colorpalette == NULL)
     {
-        colorpalette = new uint16_t[colors];
-        Serial.printf("create color palette %u\n", colors) ;
-        
+        colorpalette = new uint16_t[colors];       
         for (int8_t i=0;i<colors;i++) 
         {
             float div = colors -1;
@@ -338,41 +340,141 @@ void RECEIVER::graytoRgb16(short colors)
                 lum = (float) i/div;
             HSL hslcolor =  HSL(color_hsl.H, color_hsl.S, lum*color_hsl.L);
             colorpalette[i] = hslcolor.HSLToRGB16();
-            //Serial.printf("color %u of lum %f is %u", i, lum, colorpalette[i]);
         } 
     }
-    /*
-    else {
-        for (int8_t i=0;i<16;i++)
-            Serial.printf("color: %u = %u\n", i, colorpalette[i]);
+
+    // chedock resize. Using concept of "ScaleImage" from ZeDMD
+
+    if ((xoffset != 0) || (yoffset !=0))
+    {    int16_t thesize = 128*64*2;
+         memset ( drawRGB, 0, thesize );  
     }
-    */
+
 
     for (short y=0; y<height;y++) 
     {
         for (short x=0; x<width; x++) 
         {
             long index = (y*width)+x;
-            long test = frame[index];
             unsigned char test2 = frame[index];
             if (test2 >= colors)
                 Serial.printf("invalid color: %u\n",frame[index]); 
             else    
-                dotColor = colorpalette[test2];
+                dotColor = colorpalette[test2];  
 
-           // if (test2 == 15)
-           //     Serial.printf("color F on x: %u y: %u dot %u\n", x, y, dotColor);    
+            if (scale == 2) {
+                uint8_t a, b, c, d, e, f, g, h, i;
+                uint16_t row = width;
 
-            if (drawRGB == NULL)  {
-                Serial.printf("drawRGB == null\n"); return;
-            }    
+                if (y == 0 && x == 0)
+                {
+                    a = b = d = e = frame[0];
+                    c = f = frame[1];
+                    g = h = frame[row ];
+                    i = frame[row  ];
+                }
+                else if ((x == 0) && (y == height - 1))
+                {
+                    a = b = frame[(y - 1) * row ];
+                    c = frame[(y - 1) * row +1 ];
+                    d = g = h = e = frame[y * row ];
+                    f = i = frame[y * row +1 ];
+                }
+                else if ((x == width - 1) && (y == 0))
+                {
+                    a = d = frame[x  -1];
+                    b = c = f = e = frame[x  ];
+                    g = frame[row + x -1];
+                    h = i = frame[row + x ];
+                }
+                else if ((x == width - 1) && (y == height - 1))
+                {
+                    a = frame[y * row - 2  ];
+                    b = c = frame[y * row - 1 ];
+                    d = g = frame[height * row - 2  ];
+                    e = f = h = i = frame[height * row - 1 ];
+                }
+                else if (y == 0)
+                {
+                    a = b = frame[(y - 1) * row ];
+                    c = frame[(y - 1) * row +1 ];
+                    d = e = frame[y * row ];
+                    f = frame[y * row +1 ];
+                    g = h = frame[(y + 1) * row ];
+                    i = frame[(y + 1) * row +1 ];
+                }
+                else if (x == width - 1)
+                {
+                    a = frame[y * row - 2  ];
+                    b = c = frame[y * row - 1 ];
+                    d = frame[(y + 1) * row - 2  ];
+                    e = f = frame[(y + 1) * row - 1 ];
+                    g = frame[(y + 2) * row - 2  ];
+                    h = i = frame[(y + 2) * row - 1 ];
+                }
+                else if (y == 0)
+                {
+                    a = d = frame[x-1 ];
+                    b = e = frame[x ];
+                    c = f = frame[x+1 ];
+                    g = frame[row + x -1 ];
+                    h = frame[row + x ];
+                    i = frame[row + x +1  ];
+                }
+                else if (y == height - 1)
+                {
+                    a = frame[(y - 1) * row + x -1];
+                    b = frame[(y - 1) * row + x ];
+                    c = frame[(y - 1) * row + x +1  ];
+                    d = g = frame[y * row + x - 1 ];
+                    e = h = frame[y * row + x ];
+                    f = i = frame[y * row + x+1  ];
+                }
+                else
+                {
+                    a = frame[(y - 1) * row + x -1 ];
+                    b = frame[(y - 1) * row + x ];
+                    c = frame[(y - 1) * row + x +1  ];
+                    d = frame[y * row + x -1 ];
+                    e = frame[y * row + x ];
+                    f = frame[y * row + x +1  ];
+                    g = frame[(y + 1) * row + x - 1 ];
+                    h = frame[(y + 1) * row + x ];
+                    i = frame[(y + 1) * row + x +1  ];
+                }
+                
+                if (!(b == h) && !(d == f))
+                {
+                    graytoRgb16_setPixel( (x*2),  (y*2),  (d == b) ? colorpalette[d] : colorpalette[e]);
+                    graytoRgb16_setPixel( (x*2)+1,  (y*2),  (b == f) ? colorpalette[f] : colorpalette[e]);
+                    graytoRgb16_setPixel( (x*2),  (y*2)+1,  (d == h) ? colorpalette[d] : colorpalette[e]);
+                    graytoRgb16_setPixel( (x*2)+1,  (y*2)+1,  (h == f) ? colorpalette[f] : colorpalette[e]);
+                }
+                else
+                {
+                    graytoRgb16_setPixel( (x*2),  (y*2),  colorpalette[e]);
+                    graytoRgb16_setPixel( (x*2)+1,  y*2, colorpalette[e]);
+                    graytoRgb16_setPixel( x*2,  (y*2)+1, colorpalette[e]);
+                    graytoRgb16_setPixel( (x*2)+1,  (y*2)+1, colorpalette[e]);
+                }
 
-            if (LEFT)
+            }
+            else // no scale
+                graytoRgb16_setPixel( x,  y,  dotColor);
+     
+        }
+    }   
+}
+
+
+void RECEIVER::graytoRgb16_setPixel(int16_t x, int16_t y, uint16_t dotColor) {
+    
+        if (LEFT)
             {
                 if (x < 128)  
                 {
                     //DrawOnePixel( x,  y,  dotColor);
-                    drawRGB[(y*128)+x] = dotColor;
+                    drawRGB[((y+yoffset)*128)+x+xoffset] = dotColor;
                 }
             }
             else
@@ -380,22 +482,9 @@ void RECEIVER::graytoRgb16(short colors)
                 if (x >= 128)  
                     {
                         //DrawOnePixel( x,  y,  dotColor);
-                        drawRGB[(y*128)+x-128] = dotColor;
+                        drawRGB[((y+yoffset)*128)+x-128+xoffset] = dotColor;
                     }
-            }
-            
-        }
-    }   
-/*
-    for (int16_t y=0;y<=8;y++) {
-        for (int16_t x=0;x<256;x++) {
-            if ((y>5)&(x<128)) {
-                Serial.printf("%04x ", drawRGB[(y*256)+x]);
-            }
-        }
-        Serial.println();
-    }
-*/
+            }       
 }
 
 void RECEIVER::Rgb24toRgb16(int32_t offsetstart)
