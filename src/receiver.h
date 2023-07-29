@@ -15,6 +15,10 @@ class RECEIVER
         char gameName[32];
         int32_t width;
         int32_t height;
+        int16_t xoffset=0;
+        int16_t yoffset=0;
+        int8_t scale=1;
+
         RGB color_rgb;
         HSL color_hsl;
         uint16_t * colorpalette = NULL;
@@ -39,7 +43,9 @@ class RECEIVER
         bool JoinPlane(short offset, short bits);
         bool isBitSet(uint8_t byte, uint8_t pos);
         void graytoRgb16(short colors);
+        void graytoRgb16_setPixel(int16_t x, int16_t y, uint16_t dotColor);
         void Rgb24toRgb16(int32_t offsetstart);
+        
 
     public:
         int8_t drawFrame=0;
