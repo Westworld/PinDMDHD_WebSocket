@@ -471,7 +471,7 @@ void RECEIVER::graytoRgb16_setPixel(int16_t x, int16_t y, uint16_t dotColor) {
     
         if (LEFT)
             {
-                if (x < 128)  
+                if ((x+xoffset) < 128)  
                 {
                     //DrawOnePixel( x,  y,  dotColor);
                     drawRGB[((y+yoffset)*128)+x+xoffset] = dotColor;
@@ -479,7 +479,7 @@ void RECEIVER::graytoRgb16_setPixel(int16_t x, int16_t y, uint16_t dotColor) {
             }
             else
             {  // RIGHT
-                if (x >= 128)  
+                if ((x+xoffset) >= 128)  
                     {
                         //DrawOnePixel( x,  y,  dotColor);
                         drawRGB[((y+yoffset)*128)+x-128+xoffset] = dotColor;

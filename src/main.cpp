@@ -12,10 +12,11 @@
 #include "ESP32-HUB75-MatrixPanel-DMA.h"
 #endif
 
+#include "main.h"
 #include <receiver.h>
 
 
-bool IsLeft=true;
+bool IsLeft=false;
 
 // Server infos direkt
 /*
@@ -62,7 +63,7 @@ bool DelayedRedrawNeeded=false;
   #define PANE_WIDTH PANEL_WIDTH*PANEL_WIDTH_CNT
   #define PANE_HEIGHT PANEL_HEIGHT*PANEL_HEIGHT_CNT
 
-WiFiMulti WiFiMulti;
+WiFiManager wifiManager;
 WebSocketsClient webSocket;
 
 #define USE_SERIAL Serial
@@ -81,63 +82,23 @@ void decodePacket(uint8_t * payload, size_t length) {
   }  
 }
 
-#ifndef NoDMD
-void drawHalfFrameFast(uint8_t * payload, uint8_t half) {
-    uint8_t * startpayload = &payload[8];
+void configModeCallback (WiFiManager *myWiFiManager) {
+  #ifndef NoDMD
+  DrawFrame();
 
-    uint16_t * buffer = (uint16_t *) startpayload;
-
-		if (half == 0)
-			{
-        dma_display->fillScreenRGB888(0, 0, 0);
-        dma_display->CopyBuffer(0,  31, buffer);
-      }
-    else {
-      dma_display->CopyBuffer(32,  63, buffer);
-      dma_display->flipDMABuffer();
-
-    }  
+  dma_display->setTextColorRGB(255, 0, 0);
+  dma_display->setCursor(20, 20);
+  dma_display->setTextSize(1);
+  dma_display->println("Config mode");
+  String ipaddress = WiFi.softAPIP().toString();
+  dma_display->println(ipaddress);
+  dma_display->flipDMABuffer();
+  #else
+  Serial.println("Config mode");
+  String ipaddress = WiFi.softAPIP().toString();
+  Serial.println(ipaddress); 
+  #endif
 }
-
-void drawHalfFrame(uint8_t * payload, uint8_t half) {
-		if (half == 0)
-			dma_display->fillScreenRGB888(0, 0, 0);
-
-    uint16_t * buffer = (uint16_t *) payload;
-
-	  for (int x = 0; x < 128; x++) {
-      for (int y = 0; y <  32; y++) {
-				long offset = 4 + ((x + (y*128)));  // offset 4 weil 4 * 2
-				if (half == 0) {
-                	dma_display->drawPixel(x, y, buffer[offset]);
-				}	
-				else
-                	dma_display->drawPixel(x, y+32, buffer[offset]);				
-            }
-    }
-	if (half == 1)
-    	dma_display->flipDMABuffer();
-}
-
-void drawHalfFrameRGB(uint8_t * payload, uint8_t half) {
-		if (half == 0)
-			dma_display->fillScreenRGB888(0, 0, 0);
-
-	    for (int x = 0; x < 128; x++) {
-            for (int y = 0; y <  32; y++) {
-				long offset = 8 + ((x + (y*128)) * 3);
-				if (half == 0) {
-                	dma_display->drawPixelRGB888(x, y, payload[offset], payload[offset+1], payload[offset+2]);
-				}	
-				else
-                	dma_display->drawPixelRGB888(x, y+32, payload[offset], payload[offset+1], payload[offset+2]);				
-            }
-    }
-	if (half == 1)
-    	dma_display->flipDMABuffer();
-}
-
-#endif
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
@@ -301,19 +262,22 @@ void setup() {
  dma_display->flipDMABuffer();
  delay(1000);
 #endif
-
+String wifihostname;
 if (IsLeft)
-  WiFi.setHostname("PinMatrixL");  
+  wifihostname = "PinMatrixL";  
 else
- WiFi.setHostname("PinMatrixR");  
+ wifihostname = "PinMatrixR";  
 
-  WiFi.mode(WIFI_STA);
-	WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
+  wifiManager.setHostname(wifihostname);
+  wifiManager.setConfigPortalTimeout(180);
+  wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setConnectRetries(10);
+  wifiManager.setConnectTimeout(10);
+  wifiManager.autoConnect(wifihostname.c_str()); 
 
-	//WiFi.disconnect();
-	while(WiFiMulti.run() != WL_CONNECTED) {
-		delay(100);
-	}
+  if (WiFi.status() != WL_CONNECTED) {
+    ESP.restart();
+  }
 
   receiver = new RECEIVER(IsLeft);
 
